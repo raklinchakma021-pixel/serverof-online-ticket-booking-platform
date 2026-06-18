@@ -37,12 +37,55 @@ async function run() {
 
         const database = client.db("ticketbari_db");
            const ticketCollection = database.collection("tickets");
+     const vendorCollection = database.collection("vendors");
 
+             app.get('/api/tickets', async(req, res) =>{
+            const query = {};
+            if(req.query.vendorId){
+                query.vendorId = req.query.vendorId;
+            }
+            if(req.query.status){
+                query.status = req.query.status;
+            }
+            const cursor = ticketCollection.find(query);
+            const result = await cursor.toArray();
+            res.send(result);
+        })
             app.post('/api/tickets', async (req, res) => {
             const ticket = req.body;
             const result = await ticketCollection.insertOne(ticket);
             res.send(result);
         })
+
+
+         app.get('/api/vendors', async (req, res) => {
+            const cursor = vendorCollection.find();
+            const result = await cursor.toArray();
+            res.send(result);
+        })
+
+
+        app.get('/api/my/vendors', async (req, res) => {
+            const query = {};
+            if (req.query.vendorId) {
+                query.vendorId = req.query.vendorId;
+            }
+            const result = await vendorCollection.findOne(query);
+
+            res.send(result || {});
+        })
+
+        app.post('/api/vendors', async (req, res) => {
+            const vendor = req.body;
+            const newVendor = {
+                ...vendor,
+                createdAt: new Date()
+            }
+            const result = await vendorCollection.insertOne(newVendor);
+            res.send(result);
+        })
+
+
 
         // Send a ping to confirm a successful connection
         await client.db("admin").command({ ping: 1 });
