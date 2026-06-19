@@ -53,7 +53,11 @@ async function run() {
         })
             app.post('/api/tickets', async (req, res) => {
             const ticket = req.body;
-            const result = await ticketCollection.insertOne(ticket);
+            const newTicket = {
+                ...ticket,
+                createdAt:  new Date()
+            }
+            const result = await ticketCollection.insertOne(newTicket);
             res.send(result);
         })
 
@@ -85,7 +89,36 @@ async function run() {
             res.send(result);
         })
 
+app.put('/api/vendors/:id', async (req, res) => {
+    try {
+        const vendorId = req.params.id;
+        const updatedData = req.body;
 
+        const result = await vendorCollection.updateOne(
+            { vendorId: vendorId },
+            {
+                $set: {
+                    ...updatedData,
+                    updatedAt: new Date()
+                }
+            },
+            { upsert: true }
+        );
+
+        res.send({
+            success: true,
+            message: "Vendor updated successfully",
+            result
+        });
+
+    } catch (error) {
+        console.error(error);
+        res.status(500).send({
+            success: false,
+            message: error.message
+        });
+    }
+});
 
         // Send a ping to confirm a successful connection
         await client.db("admin").command({ ping: 1 });
