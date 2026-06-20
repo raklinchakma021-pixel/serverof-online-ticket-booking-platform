@@ -10,7 +10,7 @@ require('dotenv').config();
 app.use(cors());
 app.use(express.json());
 
-const { MongoClient, ServerApiVersion } = require('mongodb');
+const { MongoClient, ServerApiVersion , ObjectId} = require('mongodb');
 
 app.get('/', (req, res) => {
     res.send('Hello World!')
@@ -60,7 +60,14 @@ async function run() {
             const result = await ticketCollection.insertOne(newTicket);
             res.send(result);
         })
-
+app.get('/api/tickets/:id', async (req, res) => {
+            const id = req.params.id;
+            const query = {
+                _id: new ObjectId(id)
+            }
+            const result = await ticketCollection.findOne(query);
+            res.send(result);
+        })
 
          app.get('/api/vendors', async (req, res) => {
             const cursor = vendorCollection.find();
