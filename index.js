@@ -36,8 +36,16 @@ async function run() {
         await client.connect();
 
         const database = client.db("ticketbari_db");
+         const usersCollection = database.collection("user");
            const ticketCollection = database.collection("tickets");
      const vendorCollection = database.collection("vendors");
+  const bookingsCollection = database.collection("bookings");
+    app.get('/api/users', async (req, res) => {
+
+            const cursor = usersCollection.find();
+            const result = await cursor.toArray();
+            res.send(result);
+        })
 
              app.get('/api/tickets', async(req, res) =>{
             const query = {};
@@ -68,7 +76,29 @@ app.get('/api/tickets/:id', async (req, res) => {
             const result = await ticketCollection.findOne(query);
             res.send(result);
         })
+  // booking related apis
+        app.get('/api/bookings', async (req, res) => {
+            const query = {};
+            if (req.query.bookingId) {
+                query.bookingId = req.query.bookingId;
+            }
+            if (req.query.ticketId) {
+                query.ticketId = req.query.ticketId;
+            }
+            const cursor = bookingsCollection.find(query);
+            const result = await cursor.toArray();
+            res.send(result);
+        })
 
+        app.post('/api/bookings', async (req, res) => {
+            const booking = req.body;
+            const newBooking = {
+                ...booking,
+                createdAt: new Date()
+            }
+            const result = await bookingsCollection.insertOne(newBooking);
+            res.send(result);
+        })
          app.get('/api/vendors', async (req, res) => {
             const cursor = vendorCollection.find();
             const result = await cursor.toArray();
