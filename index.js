@@ -99,6 +99,21 @@ app.get('/api/tickets/:id', async (req, res) => {
             const result = await bookingsCollection.insertOne(newBooking);
             res.send(result);
         })
+          app.get("/api/bookings/:userId", async (req, res) => {
+      const { userId } = req.params;
+
+      const result = await bookingsCollection.find({ userId: userId }).toArray();
+
+      res.json(result);
+    });
+ app.delete("/api/bookings/:bookingId", async (req, res) => {
+      const { bookingId } = req.params;
+      const result = await bookingsCollection.deleteOne({
+        _id: new ObjectId(bookingId),
+      });
+
+      res.json(result);
+    });
          app.get('/api/vendors', async (req, res) => {
             const cursor = vendorCollection.find();
             const result = await cursor.toArray();
