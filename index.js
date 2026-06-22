@@ -114,6 +114,29 @@ app.get('/api/tickets/:id', async (req, res) => {
 
       res.json(result);
     });
+
+    app.patch(
+  "/api/bookings/payment-success",
+  async (req, res) => {
+    const { email } = req.body;
+
+    const result =
+      await bookingsCollection.updateMany(
+        {
+          userEmail: email,
+          paymentStatus: "Unpaid",
+        },
+        {
+          $set: {
+            paymentStatus: "Paid",
+            paidAt: new Date(),
+          },
+        }
+      );
+
+    res.send(result);
+  }
+);
          app.get('/api/vendors', async (req, res) => {
             const cursor = vendorCollection.find();
             const result = await cursor.toArray();
