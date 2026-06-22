@@ -137,6 +137,43 @@ app.get('/api/tickets/:id', async (req, res) => {
     res.send(result);
   }
 );
+
+app.patch(
+  "/api/bookings/:id",
+  async (req, res) => {
+    const id = req.params.id;
+    const { bookingStatus } =
+      req.body;
+
+    const result =
+      await bookingsCollection.updateOne(
+        {
+          _id: new ObjectId(id),
+        },
+        {
+          $set: {
+            bookingStatus,
+          },
+        }
+      );
+
+    res.send(result);
+  }
+);
+app.get(
+  "/api/vendor/bookings/:vendorId",
+  async (req, res) => {
+    const { vendorId } =
+      req.params;
+
+    const result =
+      await bookingsCollection
+        .find({ vendorId })
+        .toArray();
+
+    res.send(result);
+  }
+);
          app.get('/api/vendors', async (req, res) => {
             const cursor = vendorCollection.find();
             const vendors = await cursor.toArray();
@@ -215,6 +252,47 @@ app.put('/api/vendors/:id', async (req, res) => {
             res.send(result);
         })
 
+
+      app.get(
+  "/api/vendor/revenue/:vendorId",
+  async (req, res) => {
+    const { vendorId } = req.params;
+
+    const totalTicketsAdded =
+      await ticketCollection.countDocuments({
+        vendorId,
+      });
+
+    const paidBookings =
+      await bookingsCollection
+        .find({
+          vendorId,
+          paymentStatus: "Paid",
+        })
+        .toArray();
+
+    const totalTicketsSold =
+      paidBookings.reduce(
+        (sum, booking) =>
+          sum + Number(booking.quantity || 0),
+        0
+      );
+
+    const totalRevenue =
+      paidBookings.reduce(
+        (sum, booking) =>
+          sum +
+          Number(booking.totalPrice || 0),
+        0
+      );
+
+    res.send({
+      totalTicketsAdded,
+      totalTicketsSold,
+      totalRevenue,
+    });
+  }
+);
         // Send a ping to confirm a successful connection
         await client.db("admin").command({ ping: 1 });
         console.log("Pinged your deployment. You successfully connected to MongoDB!");
