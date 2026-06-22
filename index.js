@@ -139,8 +139,15 @@ app.get('/api/tickets/:id', async (req, res) => {
 );
          app.get('/api/vendors', async (req, res) => {
             const cursor = vendorCollection.find();
-            const result = await cursor.toArray();
-            res.send(result);
+            const vendors = await cursor.toArray();
+            for (const vendor of vendors) {
+                const filter = {
+                    vendorId: vendor._id.toString()
+                }
+                const ticketCount = await ticketCollection.countDocuments(filter)
+                vendor.ticketCount = ticketCount
+            }
+            res.send(vendors);
         })
 
 
@@ -194,6 +201,19 @@ app.put('/api/vendors/:id', async (req, res) => {
         });
     }
 });
+
+ app.patch('/api/vendors/:id', async (req, res) => {
+            const id = req.params.id;
+            const updatedVendor = req.body;
+            const filter = { _id: new ObjectId(id) }
+            const updatedDoc = {
+                $set: {
+                    status: updatedVendor.status
+                }
+            }
+            const result = await vendorCollection.updateOne(filter, updatedDoc);
+            res.send(result);
+        })
 
         // Send a ping to confirm a successful connection
         await client.db("admin").command({ ping: 1 });
