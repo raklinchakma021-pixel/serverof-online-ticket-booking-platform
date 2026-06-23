@@ -123,6 +123,16 @@ app.patch("/api/users/:id/fraud-status", async (req, res) => {
             const result = await ticketCollection.insertOne(newTicket);
             res.send(result);
         })
+
+        app.get("/api/tickets/advertised", async (req, res) => {
+  const result = await ticketCollection.find({
+      status: "approved",
+      isAdvertised: true,
+    })
+    .toArray();
+
+  res.send(result);
+});
 app.get('/api/tickets/:id', async (req, res) => {
             const id = req.params.id;
             const query = {
@@ -131,6 +141,44 @@ app.get('/api/tickets/:id', async (req, res) => {
             const result = await ticketCollection.findOne(query);
             res.send(result);
         })
+
+
+        app.patch("/api/tickets/:id/advertise", async (req, res) => {
+  const { id } = req.params;
+  const { isAdvertised } = req.body;
+
+  try {
+    // Count current advertised tickets
+    const advertisedCount = await ticketCollection.countDocuments({
+      isAdvertised: true,
+    });
+
+    // If trying to turn ON and already 6 active
+    if (isAdvertised) {
+      if (advertisedCount >= 6) {
+        return res.status(400).send({
+          message: "Maximum 6 tickets can be advertised",
+        });
+      }
+    }
+
+    const result = await ticketCollection.updateOne(
+      { _id: new ObjectId(id) },
+      {
+        $set: {
+          isAdvertised,
+        },
+      }
+    );
+
+    res.send(result);
+  } catch (error) {
+    res.status(500).send(error);
+  }
+});
+
+
+
   // booking related apis
         app.get('/api/bookings', async (req, res) => {
             const query = {};
