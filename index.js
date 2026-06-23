@@ -456,6 +456,48 @@ app.get("/api/admin/stats", async (req, res) => {
     advertisedTickets,
   });
 });
+
+// vendor stats 
+app.get("/api/vendor/stats/:email", async (req, res) => {
+  const { email } = req.params;
+
+  const totalTickets =
+    await ticketCollection.countDocuments({
+      vendorEmail: email,
+    });
+
+  const activeTickets =
+    await ticketCollection.countDocuments({
+      vendorEmail: email,
+      status: "approved",
+    });
+
+  const paidBookings =
+    await bookingsCollection
+      .find({
+        vendorEmail: email,
+        paymentStatus: "Paid",
+      })
+      .toArray();
+
+  const totalBookings =
+    paidBookings.length;
+
+  const revenue =
+    paidBookings.reduce(
+      (sum, booking) =>
+        sum +
+        Number(booking.totalPrice || 0),
+      0
+    );
+
+  res.send({
+    totalTickets,
+    activeTickets,
+    totalBookings,
+    revenue,
+  });
+});
         // Send a ping to confirm a successful connection
         await client.db("admin").command({ ping: 1 });
         console.log("Pinged your deployment. You successfully connected to MongoDB!");
