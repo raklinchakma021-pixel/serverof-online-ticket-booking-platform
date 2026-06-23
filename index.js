@@ -47,6 +47,61 @@ async function run() {
             res.send(result);
         })
 
+app.patch("/api/users/:id", async (req, res) => {
+    try {
+        const { id } = req.params;
+        const updatedData = req.body;
+
+        const result = await usersCollection.updateOne(
+            {
+                _id: new ObjectId(id)
+            },
+            {
+                $set: updatedData
+            }
+        );
+
+        res.send(result);
+
+    } catch (error) {
+        res.status(500).send({
+            success: false,
+            message: error.message
+        });
+    }
+});
+app.patch("/api/users/:id/fraud-status", async (req, res) => {
+  const { id } = req.params;
+  const { isFraud } = req.body;
+
+  const user = await usersCollection.findOne({
+    _id: new ObjectId(id),
+  });
+
+  const userResult = await usersCollection.updateOne(
+    {
+      _id: new ObjectId(id),
+    },
+    {
+      $set: {
+        isFraud,
+      },
+    }
+  );
+
+  await ticketCollection.updateMany(
+    {
+      vendorEmail: user.email,
+    },
+    {
+      $set: {
+        isHidden: isFraud,
+      },
+    }
+  );
+
+  res.send(userResult);
+});
              app.get('/api/tickets', async(req, res) =>{
             const query = {};
             if(req.query.vendorId){
