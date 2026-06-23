@@ -293,6 +293,35 @@ app.put('/api/vendors/:id', async (req, res) => {
     });
   }
 );
+
+app.patch("/tickets/:id/approve", async (req, res) => {
+  const { id } = req.params;
+
+  const result = await ticketCollection.updateOne(
+    { _id: new ObjectId(id) },
+    {
+      $set: {
+        status: "approved",
+      },
+    }
+  );
+
+  res.send(result);
+});
+app.patch("/tickets/:id/reject", async (req, res) => {
+  const { id } = req.params;
+
+  const result = await ticketCollection.updateOne(
+    { _id: new ObjectId(id) },
+    {
+      $set: {
+        status: "rejected",
+      },
+    }
+  );
+
+  res.send(result);
+});
         // Send a ping to confirm a successful connection
         await client.db("admin").command({ ping: 1 });
         console.log("Pinged your deployment. You successfully connected to MongoDB!");
