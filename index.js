@@ -46,7 +46,15 @@ async function run() {
             const result = await cursor.toArray();
             res.send(result);
         })
+app.get("/api/users/:id", async (req, res) => {
+  const { id } = req.params;
 
+  const user = await usersCollection.findOne({
+    _id: new ObjectId(id),
+  });
+
+  res.send(user);
+});
 app.patch("/api/users/:id", async (req, res) => {
     try {
         const { id } = req.params;
@@ -424,6 +432,29 @@ app.patch("/tickets/:id/reject", async (req, res) => {
   );
 
   res.send(result);
+});
+
+// admin stats 
+app.get("/api/admin/stats", async (req, res) => {
+  const usersCollection = database.collection("user");
+  const ticketCollection = database.collection("tickets");
+
+  const totalUsers = await usersCollection.countDocuments();
+  const totalVendors = await usersCollection.countDocuments({ role: "vendor" });
+
+  const totalTickets = await ticketCollection.countDocuments();
+
+  const advertisedTickets = await ticketCollection.countDocuments({
+    isAdvertised: true,
+    status: "approved",
+  });
+
+  res.send({
+    totalUsers,
+    totalVendors,
+    totalTickets,
+    advertisedTickets,
+  });
 });
         // Send a ping to confirm a successful connection
         await client.db("admin").command({ ping: 1 });
