@@ -498,6 +498,55 @@ app.get("/api/vendor/stats/:email", async (req, res) => {
     revenue,
   });
 });
+
+app.get(
+  "/api/transactions/:userId",
+  async (req, res) => {
+    const { userId } = req.params;
+
+    const result =
+      await bookingsCollection
+        .find({
+          userId,
+          paymentStatus: "Paid",
+        })
+        .sort({ paidAt: -1 })
+        .toArray();
+
+    res.send(result);
+  }
+);
+
+app.get("/api/user/stats/:userId", async (req, res) => {
+  const { userId } = req.params;
+
+  const bookings = await bookingsCollection
+    .find({ userId })
+    .toArray();
+
+  const myBookings = bookings.length;
+
+  const pendingPayments = bookings.filter(
+    booking => booking.paymentStatus === "Unpaid"
+  ).length;
+
+  const bookedTrips = bookings.filter(
+    booking => booking.paymentStatus === "Paid"
+  ).length;
+
+  const availableTickets =
+    await ticketCollection.countDocuments({
+      status: "approved",
+      isHidden: { $ne: true }
+    });
+
+  res.send({
+    myBookings,
+    pendingPayments,
+    bookedTrips,
+    availableTickets,
+  });
+});
         // Send a ping to confirm a successful connection
         await client.db("admin").command({ ping: 1 });
         console.log("Pinged your deployment. You successfully connected to MongoDB!");
