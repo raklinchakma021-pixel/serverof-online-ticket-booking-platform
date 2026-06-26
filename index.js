@@ -11,13 +11,17 @@ app.use(cors());
 app.use(express.json());
 
 const { MongoClient, ServerApiVersion , ObjectId} = require('mongodb');
-const { createRemoteJWKSet, jwtVerify } = require("jose-cjs");
+// const { createRemoteJWKSet, jwtVerify } = require("jose-cjs");
 
 app.get('/', (req, res) => {
     res.send('Hello World!')
 })
 
 
+const logger = (req, res, next) => {
+    console.log('logger middleware logged', req.params);
+    next();
+}
 
 
 const uri = process.env.MONGO_DB_URI;
@@ -31,26 +35,7 @@ const client = new MongoClient(uri, {
     }
 });
 
-const JWKS = createRemoteJWKSet(new URL(`${process.env.CLIENT_URL}/api/auth/jwks`));
 
-const verifyToken = async (req, res, next) => {
-  const authHeader = req?.headers.authorization;
-  if (!authHeader) {
-    return res.status(401).json({ message: "Unauthorized" });
-  }
-  const token = authHeader.split(" ")[1];
-  if (!token) {
-    return res.status(401).json({ message: "Unauthorized" });
-  }
-
-  try {
-    const { payload } = await jwtVerify(token, JWKS);
-    console.log(payload);
-    next();
-  } catch (error) {
-    return res.status(403).json({ message: "Forbidden" });
-  }
-};
 async function run() {
     try {
         // Connect the client to the server	(optional starting in v4.7)
@@ -61,6 +46,71 @@ async function run() {
            const ticketCollection = database.collection("tickets");
      const vendorCollection = database.collection("vendors");
   const bookingsCollection = database.collection("bookings");
+const sessionCollection = database.collection("session")
+
+
+        // verification related
+        const verifyToken = async (req, res, next) => {
+
+            const authHeader = req.headers?.authorization;
+            if (!authHeader) {
+                return res.status(401).send({ message: 'unauthorized access' })
+            }
+
+            const token = authHeader.split(' ')[1]
+
+            if (!token) {
+                return res.status(401).send({ message: 'unauthorized access' })
+            }
+
+            const query = { token: token }
+            const session = await sessionCollection.findOne(query);
+
+              if (!session) {
+                return res.status(401).send({ message: 'unauthorized access' })
+            }
+
+            const userId = session.userId;
+
+
+            const userQuery = {
+                _id: userId
+            }
+
+            const user = await usersCollection.findOne(userQuery);
+              if (!user) {
+                return res.status(401).send({ message: 'unauthorized access' })
+            }
+            // set data in the req object
+            req.user = user;
+            next();
+        }
+
+
+ // must be used after verifyToken middleware
+        const verifyUser = async (req, res, next) => {
+            if (req.user?.role !== 'user') {
+                return res.status(403).send({ message: 'forbidden access' })
+            }
+            next();
+        }
+
+          // must be used after verifyToken middleware
+        const verifyVendor = async (req, res, next) => {
+            if (req.user?.role !== 'vendor') {
+                return res.status(403).send({ message: 'forbidden access' })
+            }
+            next();
+        }
+
+    // must be used after verifyToken middleware
+        const verifyAdmin = async (req, res, next) => {
+            if (req.user.role !== 'admin') {
+                return res.status(403).send({ message: 'forbidden access' })
+            }
+            next();
+        }
+
     app.get('/api/users', async (req, res) => {
 
             const cursor = usersCollection.find();
@@ -131,7 +181,7 @@ app.patch("/api/users/:id/fraud-status", async (req, res) => {
 
   res.send(userResult);
 });
-             app.get('/api/tickets', async(req, res) =>{
+             app.get('/api/tickets',  async(req, res) =>{
             const query = {};
             if(req.query.vendorId){
                 query.vendorId = req.query.vendorId;
@@ -143,7 +193,7 @@ app.patch("/api/users/:id/fraud-status", async (req, res) => {
             const result = await cursor.toArray();
             res.send(result);
         })
-            app.post('/api/tickets', async (req, res) => {
+            app.post('/api/tickets',    async (req, res) => {
             const ticket = req.body;
             const newTicket = {
                 ...ticket,
@@ -231,11 +281,13 @@ app.get('/api/tickets/:id', async (req, res) => {
             const result = await bookingsCollection.insertOne(newBooking);
             res.send(result);
         })
-          app.get("/api/bookings/:userId", async (req, res) => {
+          app.get("/api/bookings/:userId", verifyToken, verifyUser,  async (req, res) => {
       const { userId } = req.params;
 
       const result = await bookingsCollection.find({ userId: userId }).toArray();
-
+       if (req.user._id.toString() !== req.params.userId) {
+                    return res.status(403).send({ message: 'forbidden access' })
+                }
       res.json(result);
     });
  app.delete("/api/bookings/:bookingId", async (req, res) => {
@@ -293,7 +345,7 @@ app.patch(
   }
 );
 app.get(
-  "/api/vendor/bookings/:vendorId",
+  "/api/vendor/bookings/:vendorId", 
   async (req, res) => {
     const { vendorId } =
       req.params;
@@ -306,7 +358,7 @@ app.get(
     res.send(result);
   }
 );
-         app.get('/api/vendors', async (req, res) => {
+         app.get('/api/vendors', verifyToken, async (req, res) => {
             const cursor = vendorCollection.find();
             const vendors = await cursor.toArray();
             for (const vendor of vendors) {
@@ -340,7 +392,7 @@ app.get(
             res.send(result);
         })
 
-app.put('/api/vendors/:id', async (req, res) => {
+app.put('/api/vendors/:id',  async (req, res) => {
     try {
         const vendorId = req.params.id;
         const updatedData = req.body;
@@ -371,7 +423,7 @@ app.put('/api/vendors/:id', async (req, res) => {
     }
 });
 
- app.patch('/api/vendors/:id', async (req, res) => {
+ app.patch('/api/vendors/:id', logger,verifyToken, verifyAdmin,async (req, res) => {
             const id = req.params.id;
             const updatedVendor = req.body;
             const filter = { _id: new ObjectId(id) }
@@ -386,7 +438,7 @@ app.put('/api/vendors/:id', async (req, res) => {
 
 
       app.get(
-  "/api/vendor/revenue/:vendorId",
+  "/api/vendor/revenue/:vendorId", 
   async (req, res) => {
     const { vendorId } = req.params;
 
@@ -521,7 +573,7 @@ app.get("/api/vendor/stats/:email", async (req, res) => {
 });
 
 app.get(
-  "/api/transactions/:userId",
+  "/api/transactions/:userId", 
   async (req, res) => {
     const { userId } = req.params;
 
@@ -538,7 +590,7 @@ app.get(
   }
 );
 
-app.get("/api/user/stats/:userId", async (req, res) => {
+app.get("/api/user/stats/:userId",  async (req, res) => {
   const { userId } = req.params;
 
   const bookings = await bookingsCollection
