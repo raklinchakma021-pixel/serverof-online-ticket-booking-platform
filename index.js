@@ -272,15 +272,56 @@ app.get('/api/tickets/:id', async (req, res) => {
             res.send(result);
         })
 
-        app.post('/api/bookings', async (req, res) => {
-            const booking = req.body;
-            const newBooking = {
-                ...booking,
-                createdAt: new Date()
-            }
-            const result = await bookingsCollection.insertOne(newBooking);
-            res.send(result);
-        })
+      app.post('/api/bookings', async (req, res) => {
+  const booking = req.body;
+
+  const ticket = await ticketCollection.findOne({
+    _id: new ObjectId(booking.ticketId),
+  });
+
+  // Check if ticket exists
+  if (!ticket) {
+    return res.status(404).send({
+      message: "Ticket not found",
+    });
+  }
+
+  // Check if sold out
+  if (ticket.quantity <= 0) {
+    return res.status(400).send({
+      message: "No seats available",
+    });
+  }
+
+  // Check if requested quantity exceeds available seats
+  if (Number(booking.quantity) > ticket.quantity) {
+    return res.status(400).send({
+      message: "Booking quantity exceeds available seats",
+    });
+  }
+
+  const newBooking = {
+    ...booking,
+    status: "Pending",
+    createdAt: new Date(),
+  };
+
+  const bookingResult =
+    await bookingsCollection.insertOne(newBooking);
+
+  await ticketCollection.updateOne(
+    {
+      _id: new ObjectId(booking.ticketId),
+    },
+    {
+      $inc: {
+        quantity: -Number(booking.quantity),
+      },
+    }
+  );
+
+  res.send(bookingResult);
+});
           app.get("/api/bookings/:userId", verifyToken, verifyUser,  async (req, res) => {
       const { userId } = req.params;
 
